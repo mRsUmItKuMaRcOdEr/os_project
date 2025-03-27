@@ -29,19 +29,38 @@ class ProcessResourceTracker:
                 self._update_resources()
             time.sleep(1)  # Update interval
             
-    def _update_processes(self):
-        """Update information about running processes"""
-        self.processes.clear()
-        for proc in psutil.process_iter(['pid', 'name', 'status']):
-            try:
-                self.processes[proc.info['pid']] = {
-                    'name': proc.info['name'],
-                    'status': proc.info['status'],
-                    'resources': []
-                }
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-                
+    def _update_resources(self):
+        """Simulate a deadlock by forcing circular dependencies"""
+        self.resources.clear()
+        
+        # Simulate a deadlock between 2 processes and 2 resources
+        if len(self.processes) >= 2:
+            pids = list(self.processes.keys())
+            
+            # Process 1 holds Resource 1 and waits for Resource 2
+            self.resources["R1"] = [pids[0]]  # P1 holds R1
+            self.processes[pids[0]]['resources'] = ["R1"]
+            
+            # Process 2 holds Resource 2 and waits for Resource 1
+            self.resources["R2"] = [pids[1]]  # P2 holds R2
+            self.processes[pids[1]]['resources'] = ["R2"]
+            
+            # Create circular wait (deadlock condition)
+            self.processes[pids[0]]['waiting_for'] = "R2"  # P1 waits for R2
+            self.processes[pids[1]]['waiting_for'] = "R1"  # P2 waits for R1
+        def _update_processes(self):
+            """Update information about running processes"""
+            self.processes.clear()
+            for proc in psutil.process_iter(['pid', 'name', 'status']):
+                try:
+                    self.processes[proc.info['pid']] = {
+                        'name': proc.info['name'],
+                        'status': proc.info['status'],
+                        'resources': []
+                    }
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+                    
     def _update_resources(self):
         """Simulate resource allocation (in a real system, this would track actual resources)"""
         self.resources.clear()
